@@ -17,6 +17,10 @@ class TransferGateway extends Gateway
      * @param string $endpoint
      * @param array  $payload
      *
+     * @throws \Yansongda\Pay\Exceptions\GatewayException
+     * @throws \Yansongda\Pay\Exceptions\InvalidArgumentException
+     * @throws \Yansongda\Pay\Exceptions\InvalidSignException
+     *
      * @return Collection
      */
     public function pay($endpoint, array $payload): Collection
@@ -41,8 +45,7 @@ class TransferGateway extends Gateway
             'mmpaymkttransfers/promotion/transfers',
             $payload,
             $this->config->get('key'),
-            $this->config->get('cert_client'),
-            $this->config->get('cert_key')
+            ['cert' => $this->config->get('cert_client'), 'ssl_key' => $this->config->get('cert_key')]
         );
     }
 
