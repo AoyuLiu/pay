@@ -1,19 +1,307 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Yansongda\Pay\Tests;
 
-use Mockery;
-use PHPUnit\Framework\TestCase as PHPUnitTestCase;
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Pimple\ContainerFactory;
+use PHPUnit\Framework\Attributes\CoversNothing;
+use Yansongda\Pay\Pay;
 
-class TestCase extends PHPUnitTestCase
+/**
+ */
+#[CoversNothing]
+class TestCase extends \PHPUnit\Framework\TestCase
 {
-    public function setUp()
+    protected function setUp(): void
     {
-        Mockery::globalHelpers();
+        $config = [
+            'alipay' => [
+                'default' => [
+                    'app_id' => '9021000122682882',
+                    'app_secret_cert' => 'MIIEpAIBAAKCAQEApSA9oxvcqfbgpgkxXvyCpnxaR6TPaEMh/ij+PhF8180zL82ic4whkrRlcu1Y179AKEZNar71Ugi37fKcXWLerjPOeb8WHnZgNG19gkAcOIqZPRPpJ1eRtwKEclIzt+j3H/wgXWkD7BTr61RjuAcviyvDVbAJ/TPlMqXdJFIuJwZblN2WblIv+4Dm1iPOB+fVCU3rsgg4eajf3HrZ7sq6fBhQhO5krDmIIYGsFZ+fohEgnLkBaF0gqNUb5Yb4PBfaEcu8Hcwq+XyBSMOVOIABRPQVDedW2sE/2NsLkR62DaEe/Ri9VUDJe0pE39P+X22DicJ3E3yrxvdioMnLtDqEuwIDAQABAoIBAQCSHZ1tH9J7c8IGKkxNyROzToZ0rxn5IK6LwKp5MfBO5X1N56DArldnAcpjkDL1dn7HJK6Mrr1WAfD/1ZcX680wSReEE9r2ybkHq3tMLn7KaZp/uYavEYYXc1rP7n1lV/iVjPz2q16VIU5Bx0MWLQWdGPSYdlXggHNoBe1RnobIcCGOVe9HlzCBtWzGpCZvMlqRbCuWAdp14aCkaJqpRxG4PY9Kd/NzELvhnCd9k8e7G2qcwx6gAoXN8OXO8jmZg/6fOvFnrGl6CBp8sioe5F3R023fDum546IqS8EZdCl5T0gW/boTbSV8luitab65xBO3PmUI+V2OEFCL6WcJxawBAoGBAOZoft6/LatdoXzr8vh+rKzacUHw246fpacbgx0B5DDymM7hbhXbY/NoCWPgBJtV3XI3DtMJ5yvlEVDQvPfbSHRPx2XQknwrM7ly2SLbaC+tuhcvoG6F1RLWFx+y/583seSlVNuWC9KdpLTKzo8wl8Z4/kheLTBxTxL20NZu79XBAoGBALd3fNoXk5V+T16hnSinPtt2NEsZpn+4w07DikzcpdyjCL5PYjp/BppmX3xly96fCZh3MO3Vkuya1xgauMzxVKQlR/aD5yVmsqK7wxNTY1ZQM74B44/4Mks/8MG2r7o3DElA4/qIeMP4CwkWmYcuij7npm2bgIqFzS+4aGZfDRF7AoGAKMO2Jpy2bMo9BwgLzdFDpbVkMmF1xu8R9NXWRayO/eX+CSQzQOS281qlxqjcx8rSSiHZmpb28notrRmxRTzjvchbo/TZ5eQS262pIxSkg0L+WJnRjZxaDWIZZz9ZIIdPDv/9WnhakSHZAS+cihLz12aSvqUC4744WkeWvUmVX0ECgYAGLDoCKHrps7c96tgbzwy5W4/E2xcUAwZnNwMHNQFLnBymMouOhkmVlk4uJEqosdcjzxbRWbc4yLjl8bg4BQKhBzQVojh7tKnb+c9Fbi/QbqBfCzc519LxXzRdgCUHceSy7kD9Y+wUQ9szMhR2TOWP2kFqPKolfvz5Vw4EK7yH0wKBgQDerq9Pthbii7lNt528/q0cH9vOMn9z76o6jMMea9EibclVHtdcQBWLOn8Yw97k+WSXYGuUrQUWWQbyabZqWkkS4cEjJf5/DiwOuYdNVXg7FK56ucTczBA7lR4dnunPW6U1HbSWf0Cn4Y/cl/z7B5QBSQt0W38IYHSaf6/sqsV6SA==',
+                    'app_auth_token' => '',
+                    'app_public_cert_path' => __DIR__.'/Cert/alipayAppPublicCert.crt',
+                    'alipay_public_cert_path' => __DIR__.'/Cert/alipayPublicCert.crt',
+                    'alipay_root_cert_path' => __DIR__.'/Cert/alipayRootCert.crt',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                    'return_url' => 'https://pay.yansongda.cn',
+                ],
+            ],
+            'airwallex' => [
+                'default' => [
+                    'client_id' => 'airwallex_client_id',
+                    'api_key' => 'airwallex_api_key',
+                    'webhook_secret' => 'airwallex_webhook_secret',
+                    'return_url' => 'https://pay.yansongda.cn/airwallex/return',
+                    'api_version' => '2024-06-14',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+                'secondary' => [
+                    'client_id' => 'airwallex_secondary_client_id',
+                    'api_key' => 'airwallex_secondary_api_key',
+                    'webhook_secret' => 'airwallex_secondary_webhook_secret',
+                    'return_url' => 'https://pay.yansongda.cn/airwallex/secondary-return',
+                    'api_version' => '2024-06-14',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+                'no_webhook_secret' => [
+                    'client_id' => 'airwallex_client_id',
+                    'api_key' => 'airwallex_api_key',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+            ],
+            'wechat' => [
+                'default' => [
+                    'app_id' => 'yansongda',
+                    'mp_app_id' => 'wx55955316af4ef13',
+                    'mch_id' => '1600314069',
+                    'mini_app_id' => 'wx55955316af4ef14',
+                    'mch_secret_key_v2' => 'yansongda',
+                    'mch_secret_key' => '53D67FCB97E68F9998CBD17ED7A8D1E2',
+                    'mch_secret_cert' => __DIR__.'/Cert/wechatAppPrivateKey.pem',
+                    'mch_public_cert_path' => __DIR__.'/Cert/wechatAppPublicKey.pem',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                    'wechat_public_cert_path' => [
+                        // 注意：正常情况下此处应配置微信官方公钥（wechatPublicKey.crt），但由于单元测试中的签名
+                        // 均使用 wechatAppPrivateKey.pem 生成，而 wechatPublicKey.crt 对应的私钥我们并不持有，
+                        // 因此测试环境特殊地将 serial 映射到 wechatAppPublicKey.pem，以保证验签可以通过。
+                        '45F59D4DABF31918AFCEC556D5D2C6E376675D57' => __DIR__.'/Cert/wechatAppPublicKey.pem',
+                        'yansongda' => __DIR__.'/Cert/wechatPublicKey.crt',
+                    ],
+                    'mode' => Pay::MODE_NORMAL,
+                    'virtual_pay' => [
+                        'app_key' => 'yansongda_virtual_pay',
+                        'sandbox_app_key' => 'yansongda_virtual_pay_sandbox',
+                        'offer_id' => '1234567890',
+                        'encoding_aes_key' => 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY',
+                        'callback_token' => 'test_callback_token',
+                    ],
+                ],
+                'service_provider' => [
+                    'app_id' => 'yansongdaa',
+                    'mp_app_id' => 'wx55955316af4ef13',
+                    'mch_id' => '1600314069',
+                    'mini_app_id' => 'wx55955316af4ef14',
+                    'mch_secret_key_v2' => 'yansongda',
+                    'mch_secret_key' => '53D67FCB97E68F9998CBD17ED7A8D1E2',
+                    'mch_secret_cert' => __DIR__.'/Cert/wechatAppPrivateKey.pem',
+                    'mch_public_cert_path' => __DIR__.'/Cert/wechatAppPublicKey.pem',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                    'wechat_public_cert_path' => [
+                        '45F59D4DABF31918AFCEC556D5D2C6E376675D57' => __DIR__.'/Cert/wechatPublicKey.crt',
+                    ],
+                    'sub_mp_app_id' => 'wx55955316af4ef15',
+                    'sub_app_id' => 'wx55955316af4ef16',
+                    'sub_mini_app_id' => 'wx55955316af4ef17',
+                    'sub_mch_id' => '1600314070',
+                    'mode' => Pay::MODE_SERVICE,
+                ],
+                'service_provider2' => [
+                    'mp_app_id' => 'wx55955316af4ef18',
+                    'mch_id' => '1600314071',
+                    'mch_secret_key_v2' => 'yansongda',
+                    'mch_secret_key' => '53D67FCB97E68F9998CBD17ED7A8D1E2',
+                    'mch_secret_cert' => __DIR__.'/Cert/wechatAppPrivateKey.pem',
+                    'mch_public_cert_path' => __DIR__.'/Cert/wechatAppPublicKey.pem',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                    'wechat_public_cert_path' => [
+                        '45F59D4DABF31918AFCEC556D5D2C6E376675D57' => __DIR__.'/Cert/wechatPublicKey.crt',
+                    ],
+                    'sub_mp_app_id' => 'wx55955316af4ef19',
+                    'sub_app_id' => 'wx55955316af4ef20',
+                    'sub_mini_app_id' => 'wx55955316af4ef21',
+                    'sub_mch_id' => '1600314072',
+                    'mode' => Pay::MODE_SERVICE,
+                ],
+                'service_provider3' => [
+                    'mp_app_id' => 'wx55955316af4ef18',
+                    'mch_id' => '1600314071',
+                    'mch_secret_key_v2' => 'yansongda',
+                    'mch_secret_key' => '53D67FCB97E68F9998CBD17ED7A8D1E2',
+                    'mch_secret_cert' => __DIR__.'/Cert/wechatAppPrivateKey.pem',
+                    'mch_public_cert_path' => __DIR__.'/Cert/wechatAppPublicKey.pem',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                    'wechat_public_cert_path' => [
+                        '45F59D4DABF31918AFCEC556D5D2C6E376675D57' => __DIR__.'/Cert/wechatPublicKey.crt',
+                    ],
+                    'sub_mp_app_id' => 'wx55955316af4ef19',
+                    'sub_app_id' => 'wx55955316af4ef20',
+                    'sub_mini_app_id' => '',
+                    'sub_mch_id' => '1600314072',
+                    'mode' => Pay::MODE_SERVICE,
+                ],
+                'service_provider4' => [
+                    'mp_app_id' => 'wx55955316af4ef13',
+                    'mch_id' => '1600314069',
+                    'mini_app_id' => 'wx55955316af4ef14',
+                    'mch_secret_key_v2' => 'yansongda',
+                    'mch_secret_key' => '53D67FCB97E68F9998CBD17ED7A8D1E2',
+                    'mch_secret_cert' => __DIR__.'/Cert/wechatAppPrivateKey.pem',
+                    'mch_public_cert_path' => __DIR__.'/Cert/wechatAppPublicKey.pem',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                    'wechat_public_cert_path' => [
+                        '45F59D4DABF31918AFCEC556D5D2C6E376675D57' => __DIR__.'/Cert/wechatPublicKey.crt',
+                    ],
+                    'sub_mp_app_id' => '',
+                    'sub_app_id' => 'wx55955316af4ef16',
+                    'sub_mini_app_id' => 'wx55955316af4ef17',
+                    'sub_mch_id' => '1600314070',
+                    'mode' => Pay::MODE_SERVICE,
+                ],
+                'empty_wechat_public_cert' => [
+                    'app_id' => 'yansongda',
+                    'mp_app_id' => 'wx55955316af4ef13',
+                    'mch_id' => '1600314069',
+                    'mini_app_id' => 'wx55955316af4ef14',
+                    'mch_secret_key_v2' => 'yansongda',
+                    'mch_secret_key' => '53D67FCB97E68F9998CBD17ED7A8D1E2',
+                    'mch_secret_cert' => __DIR__.'/Cert/wechatAppPrivateKey.pem',
+                    'mch_public_cert_path' => __DIR__.'/Cert/wechatAppPublicKey.pem',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                    'wechat_public_cert_path' => [],
+                    'mode' => Pay::MODE_NORMAL,
+                ],
+            ],
+            'unipay' => [
+                'default' => [
+                    'mch_id' => '777290058167151',
+                    'mch_cert_path' => __DIR__.'/Cert/unipayAppCert.pfx',
+                    'mch_cert_password' => '000000',
+                    'unipay_public_cert_path' => __DIR__.'/Cert/unipayCertPublicKey.cer',
+                    'return_url' => 'https://pay.yansongda.cn',
+                    'notify_url' => 'https://pay.yansongda.cn',
+                ],
+                'sandbox' => [
+                    'mch_id' => '777290058167151',
+                    'mch_cert_path' => __DIR__.'/Cert/unipayAppCert.pfx',
+                    'mch_cert_password' => '000000',
+                    'unipay_public_cert_path' => __DIR__.'/Cert/unipayCertPublicKey.cer',
+                    'return_url' => 'http://127.0.0.1:8000/unipay/return',
+                    'notify_url' => 'https://yansongda.cn/unipay/notify',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+                'qra' => [
+                    'mch_id' => 'QRA29045311KKR1',
+                    'mch_secret_key' => '979da4cfccbae7923641daa5dd7047c2',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+            ],
+            'jsb' => [
+                'default' => [
+                    // 服务代码
+                    'svr_code' => '',
+                    // 必填-合作商ID
+                    'partner_id' => '6a13eab71c4f4b0aa4757eda6fc59710',
+                    // 必填-公私钥对编号
+                    'public_key_code' => '00',
+                    // 必填-商户私钥(加密签名)
+                    'mch_secret_cert_path' => __DIR__.'/Cert/EpayKey.pem',
+                    // 必填-商户公钥证书路径(提供江苏银行进行验证签名用)
+                    'mch_public_cert_path' => __DIR__.'/Cert/EpayCert.cer',
+                    // 必填-江苏银行的公钥(用于解密江苏银行返回的数据)
+                    'jsb_public_cert_path' => __DIR__.'/Cert/jschina.cer',
+                    'notify_url' => 'http://127.0.0.1:8000/epay/return',
+                    // 选填-默认为正常模式。可选为： MODE_NORMAL:正式环境, MODE_SANDBOX:test环境,
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+            ],
+            'douyin' => [
+                'default' => [
+                    // 选填-商户号
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 产品管理 --> 商户号
+                    'mch_id' => '73744242495132490630',
+                    // 必填-支付 Token，用于支付回调签名
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> Token(令牌)
+                    'mch_secret_token' => 'douyin_mini_token',
+                    // 必填-支付 SALT，用于支付签名
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> SALT
+                    'mch_secret_salt' => 'oDxWDBr4U7FAAQ8hnGDm29i4A6pbTMDKme4WLLvA',
+                    // 必填-小程序 app_id
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> 小程序appid
+                    'mini_app_id' => 'tt226e54d3bd581bf801',
+                    // 选填-抖音开放平台服务商id
+                    'thirdparty_id' => '',
+                    // 选填-抖音支付回调地址
+                    'notify_url' => 'https://yansongda.cn/douyin/notify',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+                'service_provider' => [
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 产品管理 --> 商户号
+                    'mch_id' => '73744242495132490630',
+                    // 必填-支付 Token，用于支付回调签名
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> Token(令牌)
+                    'mch_secret_token' => 'douyin_mini_token',
+                    // 必填-支付 SALT，用于支付签名
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> SALT
+                    'mch_secret_salt' => 'oDxWDBr4U7FAAQ8hnGDm29i4A6pbTMDKme4WLLvA',
+                    // 必填-小程序 app_id
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> 小程序appid
+                    'mini_app_id' => 'tt226e54d3bd581bf801',
+                    // 选填-抖音开放平台服务商id
+                    'thirdparty_id' => 'service_provider',
+                    // 选填-抖音支付回调地址
+                    'notify_url' => 'https://yansongda.cn/douyin/notify',
+                    'mode' => Pay::MODE_SERVICE,
+                ],
+                'empty_salt' => [
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 产品管理 --> 商户号
+                    'mch_id' => '73744242495132490630',
+                    // 必填-支付 Token，用于支付回调签名
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> Token(令牌)
+                    'mch_secret_token' => '',
+                    // 必填-支付 SALT，用于支付签名
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> SALT
+                    'mch_secret_salt' => '',
+                    // 必填-小程序 app_id
+                    // 抖音开放平台 --> 应用详情 --> 支付信息 --> 支付设置 --> 小程序appid
+                    'mini_app_id' => 'tt226e54d3bd581bf801',
+                    // 选填-抖音开放平台服务商id
+                    'thirdparty_id' => 'service_provider',
+                    // 选填-抖音支付回调地址
+                    'notify_url' => 'https://yansongda.cn/douyin/notify',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+            ],
+            'paypal' => [
+                'default' => [
+                    'client_id' => 'paypal_client_id',
+                    'app_secret' => 'paypal_app_secret',
+                    'notify_url' => 'https://pay.yansongda.cn/paypal/notify',
+                    'return_url' => 'https://pay.yansongda.cn/paypal/return',
+                    'cancel_url' => 'https://pay.yansongda.cn/paypal/cancel',
+                    'webhook_id' => 'paypal_webhook_id',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+            ],
+            'stripe' => [
+                'default' => [
+                    'secret_key' => 'sk_test_stripe_secret',
+                    'webhook_secret' => 'whsec_stripe_webhook_secret',
+                    'success_url' => 'https://pay.yansongda.cn/stripe/success',
+                    'cancel_url' => 'https://pay.yansongda.cn/stripe/cancel',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+                'no_webhook_secret' => [
+                    'secret_key' => 'sk_test_stripe_secret',
+                    'success_url' => 'https://pay.yansongda.cn/stripe/success',
+                    'cancel_url' => 'https://pay.yansongda.cn/stripe/cancel',
+                    'mode' => Pay::MODE_SANDBOX,
+                ],
+            ],
+        ];
+
+        // hyperf 单测时，未在 hyperf 框架内，所以 sdk 没有 container, 手动设置一个
+        if (class_exists(ApplicationContext::class) && class_exists(ContainerFactory::class)) {
+            ApplicationContext::setContainer((new ContainerFactory())());
+        }
+
+        Pay::config($config);
     }
 
-    public function tearDown()
+    protected function tearDown(): void
     {
-        Mockery::close();
+        Pay::clear();
     }
 }

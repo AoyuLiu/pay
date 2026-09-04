@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Yansongda\Pay\Plugin\Wechat\V3\Marketing\Coupon\Stock;
+
+use Closure;
+use Yansongda\Artful\Contract\PluginInterface;
+use Yansongda\Artful\Exception\ContainerException;
+use Yansongda\Artful\Exception\ServiceNotFoundException;
+use Yansongda\Artful\Logger;
+use Yansongda\Artful\Rocket;
+use Yansongda\Pay\Config\WechatConfig;
+use Yansongda\Pay\Pay;
+use Yansongda\Pay\Traits\WechatTrait;
+
+/**
+ * @see https://pay.weixin.qq.com/doc/v3/merchant/4012534633
+ * @see https://pay.weixin.qq.com/doc/v3/partner/4012534537
+ */
+class CreatePlugin implements PluginInterface
+{
+    use WechatTrait;
+
+    /**
+     * @throws ContainerException
+     * @throws ServiceNotFoundException
+     */
+    public function assembly(Rocket $rocket, Closure $next): Rocket
+    {
+        Logger::debug('[Wechat][V3][Marketing][Coupon][Stock][CreatePlugin] 插件开始装载', ['rocket' => $rocket]);
+
+        $params = $rocket->getParams();
+
+        /** @var WechatConfig $config */
+        $config = self::getProviderConfig(Pay::PROVIDER_WECHAT, $params);
+        $belongMerchant = $rocket->getPayload()?->get('belong_merchant') ?? $config->getMchId();
+
+        $rocket->mergePayload([
+            '_method' => 'POST',
+            '_url' => '/v3/marketing/favor/coupon-stocks',
+            '_service_url' => '/v3/marketing/favor/coupon-stocks',
+            'belong_merchant' => $belongMerchant,
+        ]);
+
+        Logger::info('[Wechat][V3][Marketing][Coupon][Stock][CreatePlugin] 插件装载完毕', ['rocket' => $rocket]);
+
+        return $next($rocket);
+    }
+}

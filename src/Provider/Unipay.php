@@ -1,0 +1,146 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Yansongda\Pay\Provider;
+
+use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Psr7\ServerRequest;
+use Psr\Http\Message\MessageInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Yansongda\Artful\Artful;
+use Yansongda\Artful\Exception\ContainerException;
+use Yansongda\Artful\Exception\InvalidParamsException;
+use Yansongda\Artful\Exception\ServiceNotFoundException;
+use Yansongda\Artful\Rocket;
+use Yansongda\Pay\Contract\ProviderInterface;
+use Yansongda\Pay\Event;
+use Yansongda\Pay\Event\CallbackReceived;
+use Yansongda\Pay\Event\MethodCalled;
+use Yansongda\Pay\Exception\Exception;
+use Yansongda\Pay\Pay;
+use Yansongda\Pay\Plugin\Unipay\Open\CallbackPlugin;
+use Yansongda\Supports\Collection;
+use Yansongda\Supports\Str;
+
+/**
+ * @method ResponseInterface|Rocket web(array<string, mixed> $order)  电脑支付
+ * @method ResponseInterface|Rocket h5(array<string, mixed> $order)   H5支付
+ * @method Collection|Rocket        pos(array<string, mixed> $order)  刷卡支付（付款码，被扫码）
+ * @method Collection|Rocket        scan(array<string, mixed> $order) 扫码支付（摄像头，主动扫）
+ */
+class Unipay implements ProviderInterface
+{
+    public const URL = [
+        Pay::MODE_NORMAL => 'https://gateway.95516.com',
+        Pay::MODE_SANDBOX => 'https://gateway.test.95516.com',
+        Pay::MODE_SERVICE => 'https://gateway.95516.com',
+    ];
+
+    /**
+     * @param array<int, mixed> $params
+     *
+     * @throws ContainerException
+     * @throws InvalidParamsException
+     * @throws ServiceNotFoundException
+     */
+    public function __call(string $shortcut, array $params): Collection|MessageInterface|Rocket|null
+    {
+        $plugin = '\Yansongda\Pay\Shortcut\Unipay\\'.Str::studly($shortcut).'Shortcut';
+
+        return Artful::shortcut($plugin, ...$params);
+    }
+
+    /**
+     * @throws ContainerException
+     * @throws InvalidParamsException
+     */
+    public function pay(array $plugins, array $params): Collection|MessageInterface|Rocket|null
+    {
+        return Artful::artful($plugins, $params);
+    }
+
+    /**
+     * @throws ContainerException
+     * @throws InvalidParamsException
+     * @throws ServiceNotFoundException
+     */
+    public function query(array $order): Collection|Rocket
+    {
+        Event::dispatch(new MethodCalled(Pay::PROVIDER_UNIPAY, __METHOD__, $order, null));
+
+        return $this->__call('query', [$order]);
+    }
+
+    /**
+     * @throws ContainerException
+     * @throws InvalidParamsException
+     * @throws ServiceNotFoundException
+     */
+    public function cancel(array $order): Collection|Rocket
+    {
+        Event::dispatch(new MethodCalled(Pay::PROVIDER_UNIPAY, __METHOD__, $order, null));
+
+        return $this->__call('cancel', [$order]);
+    }
+
+    /**
+     * @throws InvalidParamsException
+     */
+    public function close(array $order): Collection|Rocket
+    {
+        throw new InvalidParamsException(Exception::PARAMS_METHOD_NOT_SUPPORTED, '参数异常: 银联不支持 close API');
+    }
+
+    /**
+     * @throws ContainerException
+     * @throws InvalidParamsException
+     * @throws ServiceNotFoundException
+     */
+    public function refund(array $order): Collection|Rocket
+    {
+        Event::dispatch(new MethodCalled(Pay::PROVIDER_UNIPAY, __METHOD__, $order, null));
+
+        return $this->__call('refund', [$order]);
+    }
+
+    /**
+     * @throws ContainerException
+     * @throws InvalidParamsException
+     */
+    public function callback(array|ServerRequestInterface|null $contents = null, ?array $params = null): Collection|Rocket
+    {
+        $request = $this->getCallbackParams($contents);
+
+        Event::dispatch(new CallbackReceived(Pay::PROVIDER_UNIPAY, $request->all(), $params, null));
+
+        return $this->pay(
+            [CallbackPlugin::class],
+            $request->merge($params)->all()
+        );
+    }
+
+    public function success(): ResponseInterface
+    {
+        return new Response(200, [], 'success');
+    }
+
+    /**
+     * @param null|array<string, mixed>|ServerRequestInterface $contents
+     */
+    protected function getCallbackParams(array|ServerRequestInterface|null $contents = null): Collection
+    {
+        if (is_array($contents)) {
+            return Collection::wrap($contents);
+        }
+
+        if ($contents instanceof ServerRequestInterface) {
+            return Collection::wrap($contents->getParsedBody());
+        }
+
+        $request = ServerRequest::fromGlobals();
+
+        return Collection::wrap($request->getParsedBody());
+    }
+}

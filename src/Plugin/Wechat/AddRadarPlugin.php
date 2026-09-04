@@ -1,0 +1,81 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Yansongda\Pay\Plugin\Wechat;
+
+use Closure;
+use GuzzleHttp\Psr7\Request;
+use Yansongda\Artful\Contract\PluginInterface;
+use Yansongda\Artful\Exception\ContainerException;
+use Yansongda\Artful\Exception\InvalidParamsException;
+use Yansongda\Artful\Exception\ServiceNotFoundException;
+use Yansongda\Artful\Logger;
+use Yansongda\Artful\Rocket;
+use Yansongda\Pay\Config\WechatConfig;
+use Yansongda\Pay\Pay;
+use Yansongda\Pay\Traits\WechatTrait;
+use Yansongda\Supports\Collection;
+
+class AddRadarPlugin implements PluginInterface
+{
+    use WechatTrait;
+
+    /**
+     * @throws ContainerException
+     * @throws InvalidParamsException
+     * @throws ServiceNotFoundException
+     */
+    public function assembly(Rocket $rocket, Closure $next): Rocket
+    {
+        Logger::debug('[Wechat][AddRadarPlugin] 插件开始装载', ['rocket' => $rocket]);
+
+        $params = $rocket->getParams();
+        $payload = $rocket->getPayload();
+
+        /** @var WechatConfig $config */
+        $config = self::getProviderConfig(Pay::PROVIDER_WECHAT, $params);
+
+        $rocket->setRadar(new Request(
+            self::getWechatMethod($payload),
+            self::getWechatUrl($config, $payload),
+            $this->getHeaders($payload),
+            self::getWechatBody($payload),
+        ));
+
+        Logger::info('[Wechat][AddRadarPlugin] 插件装载完毕', ['rocket' => $rocket]);
+
+        return $next($rocket);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function getHeaders(?Collection $payload): array
+    {
+        $headers = [
+            'Accept' => 'application/json, text/plain, application/x-gzip',
+            'User-Agent' => 'yansongda/pay-v3',
+            'Content-Type' => 'application/json; charset=utf-8',
+        ];
+
+        // 当 body 里有加密内容时，需要传递此参数用于微信区分
+        if (!empty($serialNo = $payload?->get('_serial_no'))) {
+            $headers['Wechatpay-Serial'] = $serialNo;
+        }
+
+        if (!empty($authorization = $payload?->get('_authorization'))) {
+            $headers['Authorization'] = $authorization;
+        }
+
+        if (!empty($contentType = $payload?->get('_content_type'))) {
+            $headers['Content-Type'] = $contentType;
+        }
+
+        if (!empty($accept = $payload?->get('_accept'))) {
+            $headers['Accept'] = $accept;
+        }
+
+        return $headers;
+    }
+}

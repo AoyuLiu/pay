@@ -1,0 +1,54 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Yansongda\Pay\Plugin\Jsb\Pay\Scan;
+
+use Closure;
+use Yansongda\Artful\Contract\PluginInterface;
+use Yansongda\Artful\Exception\ContainerException;
+use Yansongda\Artful\Exception\InvalidConfigException;
+use Yansongda\Artful\Exception\ServiceNotFoundException;
+use Yansongda\Artful\Logger;
+use Yansongda\Artful\Rocket;
+use Yansongda\Pay\Config\JsbConfig;
+use Yansongda\Pay\Exception\Exception;
+use Yansongda\Pay\Pay;
+use Yansongda\Pay\Traits\JsbTrait;
+
+/**
+ * @see https://github.com/yansongda/pay/pull/1002
+ */
+class PayPlugin implements PluginInterface
+{
+    use JsbTrait;
+
+    /**
+     * @throws InvalidConfigException
+     * @throws ServiceNotFoundException
+     * @throws ContainerException
+     */
+    public function assembly(Rocket $rocket, Closure $next): Rocket
+    {
+        Logger::debug('[Jsb][Pay][Scan][PayPlugin] 插件开始装载', ['rocket' => $rocket]);
+
+        $params = $rocket->getParams();
+
+        /** @var JsbConfig $config */
+        $config = self::getProviderConfig(Pay::PROVIDER_JSB, $params);
+        $backUrl = $rocket->getPayload()['notify_url'] ?? $config->getNotifyUrl();
+
+        if (!$backUrl) {
+            throw new InvalidConfigException(Exception::CONFIG_JSB_INVALID, '配置异常: 缺少配置参数 -- [notify_url]');
+        }
+
+        $rocket->mergePayload([
+            'service' => 'atPay',
+            'backUrl' => $backUrl,
+        ]);
+
+        Logger::info('[Jsb][Pay][Scan][PayPlugin] 插件装载完毕', ['rocket' => $rocket]);
+
+        return $next($rocket);
+    }
+}
